@@ -1,0 +1,42 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  # 생성될 도커 이미지 이름입니다. (소문자 권장)
+  IMAGE_NAME: food-classifier-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 1. Checkout Github Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 3. Login to Docker Hub
+        # GitHub Repository -> Settings -> Secrets and variables -> Actions 위치에 
+        # DOCKERHUB_USERNAME 과 DOCKERHUB_PW 를 등록해 두어야 합니다.
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_HYEMIN0216 }}
+          password: ${{ secrets.dckr_pat_BALb2kzPI_koksjaVptui-lhYio }}
+
+      - name: 4. Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # pull_request 이벤트가 발생했을 땐 빌드 테스트만 하고 푸시하지 않습니다.
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
