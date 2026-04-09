@@ -1,0 +1,11 @@
+﻿{
+  "agentId": 4,
+  "agentName": "박혜민",
+  "poolId": 1,
+  "poolName": "Default",
+  "serverUrl": "https://pipelinesghubeus2.actions.githubusercontent.com/LCckQroLmLGr6dj6lIX5C2BL8Jteu7r7Zb8N16Oas83HXKafcd/",
+  "gitHubUrl": "https://github.com/hyemin0216/hw2",
+  "workFolder": "_work",
+  "useV2Flow": true,
+  "serverUrlV2": "https://broker.actions.githubusercontent.com/"
+}

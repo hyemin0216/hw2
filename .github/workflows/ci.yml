@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Deploy Docker Image
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [ "main", "master" ]
 
 env:
-  # 생성될 도커 이미지 이름입니다. (소문자 권장)
+  # 도커 허브 아이디와 이미지명을 환경변수로 고정합니다.
+  DOCKERHUB_USERNAME: hyemin0216
   IMAGE_NAME: food-classifier-api
 
 jobs:
@@ -22,21 +23,46 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 3. Login to Docker Hub
-        # GitHub Repository -> Settings -> Secrets and variables -> Actions 위치에 
-        # DOCKERHUB_USERNAME 과 DOCKERHUB_PW 를 등록해 두어야 합니다.
+        # [주의사항] ci.yml 파일 내에 실제 비밀번호/토큰을 그대로 적으면 유출 위험 및 문법 오류가 발생합니다!
+        # 반드시 Github 레포지토리 Settings -> Secrets and variables -> Actions 에 
+        # 이름 'DOCKERHUB_PW', 값에 발급받으신 'dckr_pat_BALb...' 토큰을 저장 후 사용해 주세요.
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_HYEMIN0216 }}
-          password: ${{ secrets.dckr_pat_BALb2kzPI_koksjaVptui-lhYio }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PW }}
 
       - name: 4. Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          # pull_request 이벤트가 발생했을 땐 빌드 테스트만 하고 푸시하지 않습니다.
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    # [핵심] 등록하신 'Windows' 기반 로컬 PC (self-hosted runner) 에서 잡이 실행됩니다.
+    runs-on: self-hosted
+    
+    steps:
+      - name: 1. Login to Docker Hub (Local Runner)
+        # Windows Runner(PowerShell) 환경에서 도커 데몬에 로그인합니다. 
+        # (Private 저장소 이미지 다운로드를 위함, Public인 경우 생략 가능)
+        run: echo "${{ secrets.DOCKERHUB_PW }}" | docker login -u ${{ env.DOCKERHUB_USERNAME }} --password-stdin
+        continue-on-error: true
+
+      - name: 2. 기존 실행 중인 컨테이너 중지 및 삭제
+        # 이미 켜져있는 컨테이너가 있다면 삭제를 시도합니다. (없더라도 에러를 무시합니다)
+        run: docker rm -f ${{ env.IMAGE_NAME }}
+        continue-on-error: true
+
+      - name: 3. 최신 도커 이미지 다운로드 (Pull)
+        # 방금 빌드되어 올라간 최신 이미지를 내 컴퓨터로 내려받습니다.
+        run: docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: 4. 새로운 컨테이너 실행 (Run)
+        # 내려받은 이미지로 서버를 백그라운드(-d)로 즉시 띄웁니다.
+        run: docker run -d --name ${{ env.IMAGE_NAME }} -p 8000:8000 ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
