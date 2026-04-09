@@ -26,8 +26,8 @@ jobs:
         # DOCKERHUB_USERNAME 과 DOCKERHUB_PW 를 등록해 두어야 합니다.
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PW }}
+          username: ${{ secrets.DOCKERHUB_HYEMIN0216 }}
+          password: ${{ secrets.dckr_pat_BALb2kzPI_koksjaVptui-lhYio }}
 
       - name: 4. Build and push Docker image
         uses: docker/build-push-action@v5
